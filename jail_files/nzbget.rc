@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# $FreeBSD$
+#
+# PROVIDE: nzbget
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+. /etc/rc.subr
+name=nzbget
+rcvar=${name}_enable
+load_rc_config $name
+
+: ${nzbget_enable:="NO"}
+: ${nzbget_user:="nzbget"}
+: ${nzbget_group:="nzbget"}
+: ${nzbget_data_dir:="/config"}
+
+pidfile="${nzbget_data_dir}/nzbget.pid"
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/nzbget"
+command_args="-f ${procname} -c=${nzbget_data_dir}/nzbget.conf -D"
+
+start_precmd=nzbget_precmd
+nzbget_precmd() {
+if [ ! -d ${nzbget_data_dir} ]; then
+install -d -o ${nzbget_user} -g ${nzbget_group} ${nzbget_data_dir}
+fi
+
+export XDG_CONFIG_HOME=${nzbget_data_dir}
+}
+
+run_rc_command "$1"

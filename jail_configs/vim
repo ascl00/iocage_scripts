@@ -1,0 +1,37 @@
+function setup_vim()
+{
+    local app="vim"
+    local user=nick
+    local host_home_dir=/mnt/Tank/Home/$user
+    local public_dir=/mnt/Tank/Public
+    local root="$IOCAGE_JAILS/$app/root"
+    local uid=1000
+    local gid=1000
+    local group=sharedfiles
+
+    echo '{"pkgs":["neovim", "neovim-qt","bash", "xauth", "mesa-dri", "curl", "git", "yarn", "xclip", "npm", "ruby", "devel/ruby-gems", "py27-pip", "python-36"]}' > /tmp/pkg.json
+    iocage create -n "$app" -p /tmp/pkg.json -r $RELEASE dhcp=on vnet=on bpf=yes defaultrouter=$GATEWAY resolver="$DNS" allow_raw_sockets=1 boot="on" vnet0_mac="588F8FF6FC30,588F8FF6FC31"
+    rm /tmp/pkg.json
+
+    mkdir -p $root/home/$user
+    mkdir -p $root/public
+
+    iocage fstab -a $app $host_home_dir /home/$user nullfs rw 0 0
+    iocage fstab -a $app $public_dir /public nullfs rw 0 0
+
+    iocage exec $app "pw group add -g $gid -n $group"
+    iocage exec $app "pw user add $user -u $uid -g $gid -d /home/$user -s /usr/local/bin/bash"
+
+    iocage exec $app yarn global add neovim
+    iocage exec $app npm install -g neovim
+    iocage exec $app gem install neovim
+    iocage exec $app gem environment
+    iocage exec $app su -l $user -c "pip-2.7 install --user --upgrade pynvim"
+    iocage exec $app su -l $user -c "pip-3.6 install --user --upgrade pynvim"
+
+	iocage exec $app sed -i '' -e 's?#X11UseLocalhost yes?X11UseLocalhost no?' /etc/ssh/sshd_config
+	iocage exec $app sysrc sshd_enable=YES
+	iocage exec $app sysrc dbus_enable=YES
+	iocage exec $app service sshd start
+	iocage exec $app service dbus start
+}

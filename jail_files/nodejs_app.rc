@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# $FreeBSD$
+#
+# PROVIDE: nodejs_app
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# nodejs_app_enable: Set to YES to enable nodejs_app
+# Default: NO
+# nodejs_app_user: The user account used to run the nodejs_app daemon.
+# This is optional, however do not specifically set this to an
+# empty string as this will cause the daemon to run as root.
+# Default: media
+# nodejs_app_group: The group account used to run the nodejs_app daemon.
+# This is optional, however do not specifically set this to an
+# empty string as this will cause the daemon to run with group wheel.
+# Default: media
+# nodejs_app_data_dir: Directory where nodejs_app configuration
+# data is stored.
+# Default: /var/db/nodejs_app
+
+. /etc/rc.subr
+name=nodejs_app
+rcvar=${name}_enable
+load_rc_config $name
+
+: ${nodejs_app_enable:="NO"}
+: ${nodejs_app_user:="nodejs_app"}
+: ${nodejs_app_group:="nodejs_app"}
+: ${nodejs_app_data_dir:="/app"}
+: ${nodejs_app_chdir:="/app/roon-extension-denon-telnet"}
+
+pidfile="${nodejs_app_data_dir}/nodejs_app.pid"
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/node"
+command_args="-f ${procname} ."
+
+run_rc_command "$1"

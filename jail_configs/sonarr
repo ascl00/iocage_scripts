@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+if [ -z "$RELEASE" ]; then
+    echo Only executable via setup.sh
+    exit
+fi
+
+function setup_sonarr()
+{
+	# Sonarr
+	local app="sonarr"
+    local config_dir="$JAIL_CONFIG/$app"
+    local root_dir=$IOCAGE_JAILS/$app/root
+    local download_dir=$DOWNLOAD_POOL/nzbget/downloads
+    local tv_dir=$TV_DIR
+
+	echo '{"pkgs":["sonarr", "mono","mediainfo","sqlite3","ca_root_nss","curl"]}' > /tmp/pkg.json
+	iocage create -n "$app" -p /tmp/pkg.json -r $RELEASE dhcp=on vnet=on bpf=yes defaultrouter=$GATEWAY resolver="nameserver 10.8.0.1" allow_raw_sockets=1 boot="on" vnet0_mac="588F8446FC00,588F8446FC01"
+	rm /tmp/pkg.json
+
+    # Create the various directories we need
+	mkdir -p $config_dir
+	mkdir -p $root_dir/downloads
+	mkdir -p $root_dir/tv
+	mkdir -p $root_dir/config
+	mkdir -p $download_dir
+
+    # Mount useful paths into the jail
+	iocage fstab -a $app $config_dir /config nullfs rw 0 0
+	iocage fstab -a $app $download_dir /downloads nullfs rw 0 0
+	iocage fstab -a $app $tv_dir /tv nullfs rw 0 0
+
+	iocage exec $app ln -s /usr/local/bin/mono /usr/bin/mono
+	iocage exec $app chown -R $app:$app /config
+
+	iocage exec $app sysrc "${app}_enable=YES"
+	iocage exec $app sysrc "${app}_data_dir"="/config"
+	# Run as root so we can listen on port 80
+	iocage exec $app sysrc ${app}_user="root"
+	iocage exec $app service $app start
+}

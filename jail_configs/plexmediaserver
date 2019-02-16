@@ -1,0 +1,33 @@
+function setup_plexmediaserver()
+{
+    local app=plexmediaserver
+
+    local config_dir="$JAIL_CONFIG/$app"
+    local root=$IOCAGE_JAILS/$app/root
+    local tv_dir=$TV_DIR
+    local download_dir=$DOWNLOAD_POOL/nzbget/downloads
+
+    cho '{"pkgs":["plexmediaserver", "ca_root_nss"]}' > /tmp/pkg.json
+    iocage create -n "$app" -p /tmp/pkg.json -r $RELEASE dhcp=on vnet=on bpf=yes defaultrouter=$GATEWAY resolver="$DNS" allow_raw_sockets=1 boot="on" vnet0_mac="588F8446FC40,588F8446FC41"
+    rm /tmp/pkg.json
+
+    mkdir -p $config_dir
+    mkdir -p $root/downloads
+    mkdir -p $root/config
+    mkdir -p $root/video
+    mkdir -p $root/photos
+
+    iocage fstab -a $app $config_dir /config nullfs rw 0 0
+    iocage fstab -a $app $download_dir /downloads nullfs rw 0 0
+	iocage fstab -a $app $VIDEO_DIR /video nullfs rw 0 0
+	iocage fstab -a $app $PHOTO_DIR /photos nullfs rw 0 0
+
+    iocage exec $app "pw user add $app -c $app -u $JAIL_USER_ID -d /nonexistent -s /usr/bin/nologin"
+    iocage exec $app chown -R $app:$app /config
+
+    iocage exec $app sysrc "${app}_enable"="YES"
+	iocage exec $app sysrc "${app}_support_path"="/config"
+    iocage exec $app sysrc "${app}_user=plexmediaserver"
+    iocage exec $app sysrc "${app}_group=plexmediaserver"
+    iocage exec $app service $app start
+}

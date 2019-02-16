@@ -1,0 +1,28 @@
+function setup_nodejs_app()
+{
+    local app="nodejs_app"
+    local root_dir=$IOCAGE_JAILS/$app/root
+    local app_dir=$root_dir/app
+
+    echo '{"pkgs":["node","git","npm"]}' > /tmp/pkg.json
+    iocage create -n "$app" -p /tmp/pkg.json -r $RELEASE dhcp=on vnet=on bpf=yes defaultrouter=$GATEWAY resolver="$DNS" allow_raw_sockets=1 boot="on" vnet0_mac="588F8446FC20,588F8446FC21"
+    rm /tmp/pkg.json
+
+    mkdir -p $app_dir
+
+    iocage fstab -a $app $c /app nullfs rw 0 0
+
+    iocage exec $app "pw user add $app -c $app -u 1003 -d /nonexistent -s /usr/bin/nologin"
+    iocage exec $app chown -R $app:$app /app
+	iocage exec $app rm -rf /app/roon-extension-denon-telnet
+	iocage exec $app git -C /app clone  https://github.com/ascl00/roon-extension-denon-telnet.git
+	iocage exec $app "cd /app/roon-extension-denon-telnet && npm install --prod ."
+	# manually copy index.js with fixes, hopefully upstream will get it sometime soon
+	cp $JAIL_FILES/$app.index.js $app_dir/roon-extension-denon-telnet/node_modules/marantz-denon-telnet/
+    iocage exec $app mkdir -p /usr/local/etc/rc.d
+    cp $JAIL_FILES/$app.rc  $root_dir/usr/local/etc/rc.d/$app
+
+    iocage exec $app chmod u+x /usr/local/etc/rc.d/$app
+    iocage exec $app sysrc "${app}_enable=YES"
+    iocage exec $app service $app start
+}

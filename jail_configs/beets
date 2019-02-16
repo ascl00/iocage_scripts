@@ -1,0 +1,38 @@
+function setup_beets()
+{
+    local app="beets"
+    local config_dir="$JAIL_CONFIG/$app"
+    local root_dir="$IOCAGE_JAILS/$app/root"
+    local music_dir="$MUSIC_DIR/FLAC"
+    local download_dir="$DOWNLOAD_POOL/soulseek/downloads/complete"
+
+    # create jail with appropriate packages
+    echo '{"pkgs":["beets", "py27-pyacoustid", "py27-Flask", "py27-pylast","py27-requests","aacgain","bash"]}' > /tmp/pkg.json
+    iocage create -n "$app" -p /tmp/pkg.json -r $RELEASE dhcp=on vnet=on bpf=yes defaultrouter=$GATEWAY resolver="$DNS" allow_raw_sockets=1 boot="on" vnet0_mac="588F8446FC30,588F8446FC31"
+    rm /tmp/pkg.json
+
+    # Create mount points
+	mkdir -p $config_dir
+	mkdir -p $download_dir
+    mkdir -p $root_dir/downloads
+    mkdir -p $root_dir/music
+    mkdir -p $root_dir/config
+
+    # Add mount points
+    iocage fstab -a $app $config_dir /config nullfs rw 0 0
+    iocage fstab -a $app $download_dir /downloads nullfs rw 0 0
+    iocage fstab -a $app $music_dir /music nullfs rw 0 0
+
+    # create user and set permissions
+    iocage exec $app "pw user add $app -c $app -u $JAIL_USER_ID -d /config -s /usr/local/bin/bash"
+    iocage exec $app chown -R $app:$app /config
+    iocage exec $app mkdir -p /usr/local/etc/rc.d
+    # copy over config
+    cp $JAIL_FILES/$app.rc  $root_dir/usr/local/etc/rc.d/$app
+
+    # start service
+    iocage exec $app chmod u+x /usr/local/etc/rc.d/$app
+    iocage exec $app sysrc "${app}_enable"="YES"
+    iocage exec $app service $app start
+}
+

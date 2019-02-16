@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# $FreeBSD$
+#
+# PROVIDE: beets
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# beets_enable: Set to YES to enable beets
+# Default: NO
+# beets_user: The user account used to run the beets daemon.
+# This is optional, however do not specifically set this to an
+# empty string as this will cause the daemon to run as root.
+# Default: media
+# beets_group: The group account used to run the beets daemon.
+# This is optional, however do not specifically set this to an
+# empty string as this will cause the daemon to run with group wheel.
+# Default: media
+# beets_data_dir: Directory where beets configuration
+# data is stored.
+# Default: /var/db/beets
+
+. /etc/rc.subr
+name=beets
+rcvar=${name}_enable
+load_rc_config $name
+
+: ${beets_enable:="NO"}
+: ${beets_user:="beets"}
+: ${beets_group:="beets"}
+: ${beets_data_dir:="/config"}
+
+pidfile="${beets_data_dir}/beets.pid"
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/beet"
+command_args="-f ${procname} -c=${beets_data_dir}/beets.conf -D"
+
+start_precmd=beets_precmd
+beets_precmd() {
+if [ ! -d ${beets_data_dir} ]; then
+install -d -o ${beets_user} -g ${beets_group} ${beets_data_dir}
+fi
+
+export XDG_CONFIG_HOME=${beets_data_dir}
+}
+
+run_rc_command "$1"
